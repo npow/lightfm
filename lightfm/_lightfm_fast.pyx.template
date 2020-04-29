@@ -781,6 +781,89 @@ def fit_logistic(CSRMatrix item_features,
                user_alpha)
 
 
+def fit_rmse(CSRMatrix item_features,
+             CSRMatrix user_features,
+             int[::1] user_ids,
+             int[::1] item_ids,
+             flt[::1] Y,
+             flt[::1] sample_weight,
+             int[::1] shuffle_indices,
+             FastLightFM lightfm,
+             double learning_rate,
+             double item_alpha,
+             double user_alpha,
+             int num_threads):
+    """
+    Fit the LightFM model.
+    """
+
+    cdef int i, no_examples, user_id, item_id, row
+    cdef double prediction, loss
+    cdef flt y, weight
+    cdef flt *user_repr
+    cdef flt *it_repr
+
+    no_examples = Y.shape[0]
+
+    {nogil_block}
+
+        user_repr = <flt *>malloc(sizeof(flt) * (lightfm.no_components + 1))
+        it_repr = <flt *>malloc(sizeof(flt) * (lightfm.no_components + 1))
+
+        for i in {range_block}(no_examples):
+
+            row = shuffle_indices[i]
+
+            user_id = user_ids[row]
+            item_id = item_ids[row]
+            weight = sample_weight[row]
+
+            compute_representation(user_features,
+                                   lightfm.user_features,
+                                   lightfm.user_biases,
+                                   lightfm,
+                                   user_id,
+                                   lightfm.user_scale,
+                                   user_repr)
+            compute_representation(item_features,
+                                   lightfm.item_features,
+                                   lightfm.item_biases,
+                                   lightfm,
+                                   item_id,
+                                   lightfm.item_scale,
+                                   it_repr)
+
+            prediction = compute_prediction_from_repr(user_repr,
+                                                      it_repr,
+                                                      lightfm.no_components)
+
+            y = Y[row]
+
+            loss = weight * (prediction - y) ** 2
+            update(loss,
+                   item_features,
+                   user_features,
+                   user_id,
+                   item_id,
+                   user_repr,
+                   it_repr,
+                   lightfm,
+                   item_alpha,
+                   user_alpha)
+
+            if lightfm.item_scale > MAX_REG_SCALE or lightfm.user_scale > MAX_REG_SCALE:
+                locked_regularize(lightfm,
+                                  item_alpha,
+                                  user_alpha)
+
+        free(user_repr)
+        free(it_repr)
+
+    regularize(lightfm,
+               item_alpha,
+               user_alpha)
+
+
 def fit_warp(CSRMatrix item_features,
              CSRMatrix user_features,
              CSRMatrix interactions,
