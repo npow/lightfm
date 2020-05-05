@@ -833,9 +833,9 @@ def fit_rmse(CSRMatrix item_features,
                                    lightfm.item_scale,
                                    it_repr)
 
-            prediction = compute_prediction_from_repr(user_repr,
-                                                      it_repr,
-                                                      lightfm.no_components)
+            prediction = sigmoid(compute_prediction_from_repr(user_repr,
+                                                              it_repr,
+                                                              lightfm.no_components))
 
             y = Y[row]
 
