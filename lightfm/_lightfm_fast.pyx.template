@@ -839,7 +839,7 @@ def fit_rmse(CSRMatrix item_features,
 
             y = Y[row]
 
-            loss = weight * (prediction - y) ** 2
+            loss = weight * (prediction - y)
             update(loss,
                    item_features,
                    user_features,
